@@ -1,0 +1,171 @@
+{% extends 'admin/base.html' %}
+{% block title %}Чат — {{ session_id[:8] }}...{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h3 class="mb-0">
+    <i class="bi-chat-dots"></i> Чат с <strong>{{ user_name }}</strong>
+    <small class="text-muted fs-6">({{ session_id[:12] }}...)</small>
+  </h3>
+  <a href="{{ url_for('admin_new.chats_list') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi-arrow-left"></i> Все чаты
+  </a>
+</div>
+
+<div class="row">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-body p-0" style="display: flex; flex-direction: column; height: 500px;">
+        <!-- Messages -->
+        <div id="chatMessages" class="p-3" style="flex: 1; overflow-y: auto; background: #f8f9fa;">
+          <div class="text-center text-muted py-5">Загрузка...</div>
+        </div>
+        <!-- Input -->
+        <div class="border-top p-3 d-flex gap-2">
+          <input id="replyInput" type="text" class="form-control" placeholder="Введите ответ..." maxlength="1000">
+          <button id="sendReplyBtn" class="btn btn-primary"><i class="bi-send"></i></button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-body">
+        <h6><i class="bi-info-circle"></i> Информация</h6>
+        <dl class="small mb-0">
+          <dt>Имя</dt>
+          <dd>{{ user_name }}</dd>
+          <dt>ID сессии</dt>
+          <dd><code>{{ session_id }}</code></dd>
+          <dt>Сообщений</dt>
+          <dd id="messageCount">—</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script>
+(function() {
+  const SESSION_ID = '{{ session_id }}';
+  const messagesEl = document.getElementById('chatMessages');
+  const replyInput = document.getElementById('replyInput');
+  const sendBtn = document.getElementById('sendReplyBtn');
+  let socket = null;
+  let lastTime = null;
+
+  function loadHistory() {
+    fetch('/api/chat/history?session_id=' + encodeURIComponent(SESSION_ID))
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (!data.ok || !data.messages) return;
+        renderMessages(data.messages);
+        document.getElementById('messageCount').textContent = data.messages.length;
+        if (data.messages.length > 0) {
+          lastTime = data.messages[data.messages.length - 1].created_at;
+        }
+        // Mark as read
+        fetch('/api/chat/admin/sessions/' + encodeURIComponent(SESSION_ID) + '/mark-read', { method: 'POST' });
+      });
+  }
+
+  function renderMessages(msgs) {
+    messagesEl.innerHTML = '';
+    if (msgs.length === 0) {
+      messagesEl.innerHTML = '<div class="text-center text-muted py-5">Нет сообщений</div>';
+      return;
+    }
+    msgs.forEach(function(msg) {
+      const bubble = document.createElement('div');
+      bubble.className = 'd-flex mb-3 ' + (msg.is_from_admin ? 'justify-content-end' : '');
+      const time = new Date(msg.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+      bubble.innerHTML =
+        '<div class="' + (msg.is_from_admin ? 'bg-primary text-white' : 'bg-white border') + ' rounded-3 p-3" style="max-width: 75%;">' +
+          '<div class="fw-bold small mb-1">' + (msg.is_from_admin ? 'Вы' : 'Посетитель') + '</div>' +
+          '<div>' + escapeHtml(msg.message) + '</div>' +
+          '<div class="small ' + (msg.is_from_admin ? 'text-white-50' : 'text-muted') + ' mt-1">' + time + '</div>' +
+        '</div>';
+      messagesEl.appendChild(bubble);
+    });
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function escapeHtml(text) {
+    if (!text) return '';
+    var div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  function appendMessage(msg) {
+    const exists = messagesEl.querySelectorAll('.rounded-3').length;
+    if (exists === 0) { messagesEl.innerHTML = ''; }
+    const bubble = document.createElement('div');
+    bubble.className = 'd-flex mb-3 ' + (msg.is_from_admin ? 'justify-content-end' : '');
+    const time = new Date(msg.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    bubble.innerHTML =
+      '<div class="' + (msg.is_from_admin ? 'bg-primary text-white' : 'bg-white border') + ' rounded-3 p-3" style="max-width: 75%;">' +
+        '<div class="fw-bold small mb-1">' + (msg.is_from_admin ? 'Вы' : 'Посетитель') + '</div>' +
+        '<div>' + escapeHtml(msg.message) + '</div>' +
+        '<div class="small ' + (msg.is_from_admin ? 'text-white-50' : 'text-muted') + ' mt-1">' + time + '</div>' +
+      '</div>';
+    messagesEl.appendChild(bubble);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function sendReply() {
+    const text = replyInput.value.trim();
+    if (!text) return;
+    replyInput.value = '';
+
+    // Optimistic append
+    appendMessage({ message: text, is_from_admin: true, created_at: new Date().toISOString() });
+
+    fetch('/api/chat/admin/sessions/' + encodeURIComponent(SESSION_ID) + '/reply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text }),
+    });
+  }
+
+  function initSocket() {
+    try {
+      socket = io({ query: { session_id: SESSION_ID }, transports: ['websocket', 'polling'] });
+      socket.on('connect', function() { socket.emit('join_admin'); });
+      socket.on('new_message', function(data) {
+        if (!data.is_from_admin) {
+          appendMessage(data);
+        }
+      });
+    } catch (e) {
+      // Poll fallback
+      setInterval(function() {
+        fetch('/api/chat/history?session_id=' + encodeURIComponent(SESSION_ID) + (lastTime ? '&since=' + encodeURIComponent(lastTime) : ''))
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+            if (data.ok && data.messages) {
+              data.messages.forEach(function(m) {
+                if (!m.is_from_admin) appendMessage(m);
+                lastTime = m.created_at;
+              });
+            }
+          });
+      }, 4000);
+    }
+  }
+
+  // Events
+  sendBtn.addEventListener('click', sendReply);
+  replyInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') sendReply();
+  });
+
+  // Init
+  loadHistory();
+  initSocket();
+})();
+</script>
+{% endblock %}

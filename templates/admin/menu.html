@@ -1,0 +1,69 @@
+{% extends 'admin/base.html' %}
+{% block title %}Настройка меню{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2 class="mb-0"><i class="bi-menu-button-wide me-2"></i> Настройка меню</h2>
+  <a href="{{ url_for('admin_new.dashboard') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi-arrow-left"></i> Назад
+  </a>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <p class="text-muted mb-4">Включите или отключите выпадающие списки для пунктов навигационного меню на сайте.</p>
+
+    <form method="POST" action="{{ url_for('admin_new.nav_menu') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <div class="list-group mb-4">
+        <div class="list-group-item d-flex align-items-center">
+          <div class="form-check form-switch flex-grow-1">
+            {{ form.nav_dropdown_services(class='form-check-input', role='switch', id='nav_dropdown_services') }}
+            <label class="form-check-label ms-2 fw-semibold" for="nav_dropdown_services">
+              <i class="bi-grid me-2"></i> Услуги
+            </label>
+          </div>
+          <small class="text-muted">Показывать список услуг при наведении</small>
+        </div>
+
+        <div class="list-group-item d-flex align-items-center">
+          <div class="form-check form-switch flex-grow-1">
+            {{ form.nav_dropdown_articles(class='form-check-input', role='switch', id='nav_dropdown_articles') }}
+            <label class="form-check-label ms-2 fw-semibold" for="nav_dropdown_articles">
+              <i class="bi-journal-text me-2"></i> Блог
+            </label>
+          </div>
+          <small class="text-muted">Показывать список статей при наведении</small>
+        </div>
+
+        <div class="list-group-item d-flex align-items-center">
+          <div class="form-check form-switch flex-grow-1">
+            {{ form.nav_dropdown_personnel(class='form-check-input', role='switch', id='nav_dropdown_personnel') }}
+            <label class="form-check-label ms-2 fw-semibold" for="nav_dropdown_personnel">
+              <i class="bi-people me-2"></i> Персонал
+            </label>
+          </div>
+          <small class="text-muted">Показывать список сотрудников при наведении</small>
+        </div>
+
+        <div class="list-group-item d-flex align-items-center">
+          <div class="form-check form-switch flex-grow-1">
+            {{ form.nav_dropdown_faq(class='form-check-input', role='switch', id='nav_dropdown_faq') }}
+            <label class="form-check-label ms-2 fw-semibold" for="nav_dropdown_faq">
+              <i class="bi-question-circle me-2"></i> Вопросы
+            </label>
+          </div>
+          <small class="text-muted">Показывать список вопросов при наведении</small>
+        </div>
+      </div>
+
+      <div class="text-end">
+        <button type="submit" class="btn btn-primary">
+          <i class="bi-check-lg me-1"></i> Сохранить настройки
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

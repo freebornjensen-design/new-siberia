@@ -1,0 +1,42 @@
+# Node / Vite
+node_modules/
+dist/
+*.local
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Flask
+instance/
+.webassets-cache
+
+# Environment variables & secrets
+.env
+.env.local
+.env.*.local
+
+# Server credentials
+.servers_credentials
+.server_credentials
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Local test databases (smoke.db, test.db, etc.)
+*.db

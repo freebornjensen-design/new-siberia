@@ -1,0 +1,280 @@
+{% extends 'admin/base.html' %}
+{% block title %}{{ 'Создать' if is_create else 'Редактировать' }} сотрудника{% endblock %}
+{% block content %}
+<h3 class="mb-3">{{ 'Новый сотрудник' if is_create else 'Редактирование: ' + person.name }}</h3>
+
+<div class="row">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-body">
+        <form method="post" novalidate>
+          {{ form.hidden_tag() }}
+
+          <div class="mb-3">
+            {{ form.name.label(class='form-label') }}
+            {{ form.name(class='form-control' + (' is-invalid' if form.name.errors else '')) }}
+            {% for err in form.name.errors %}<div class="invalid-feedback">{{ err }}</div>{% endfor %}
+          </div>
+
+          <div class="mb-3">
+            {{ form.position.label(class='form-label') }}
+            {{ form.position(class='form-control') }}
+          </div>
+
+          <!-- Photo: hidden field + gallery picker button -->
+          <div class="mb-3">
+            <label class="form-label">Фото</label>
+            <div class="input-group">
+              {{ form.photo(class='form-control', id='photoField', readonly=True, placeholder='Выберите из галереи...') }}
+              <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#photoPickerModal">
+                <i class="bi-images me-1"></i>Выбрать
+              </button>
+              <button type="button" class="btn btn-outline-danger" onclick="document.getElementById('photoField').value=''; document.getElementById('photoPreview').src='';">
+                <i class="bi-x-lg"></i>
+              </button>
+            </div>
+            <img id="photoPreview" src="" class="mt-2 rounded" style="max-height:120px;display:none;">
+          </div>
+
+          <div class="mb-3">
+            {{ form.intro.label(class='form-label') }}
+            {{ form.intro(class='form-control', rows=2, placeholder='Короткое сильное вступление (1-2 предложения)') }}
+            <div class="form-text text-muted">Отображается крупно под именем специалиста</div>
+          </div>
+
+          <div class="mb-3">
+            {{ form.full_bio.label(class='form-label') }}
+            {{ form.full_bio(class='form-control', rows=6, placeholder='Развёрнутая биография, подход к работе') }}
+            <div class="form-text text-muted">Основной текст на странице специалиста</div>
+          </div>
+
+          <div class="mb-3">
+            {{ form.achievements.label(class='form-label') }}
+            {{ form.achievements(class='form-control', rows=3) }}
+          </div>
+
+          <div class="mb-3">
+            {{ form.bio.label(class='form-label') }}
+            {{ form.bio(class='form-control', rows=4) }}
+          </div>
+
+          <div class="mb-3">
+            {{ form.education.label(class='form-label') }}
+            {{ form.education(class='form-control', rows=4, placeholder='Список учебных заведений, год окончания, специальность') }}
+            <div class="form-text text-muted">Каждое заведение с новой строки или с HTML-тегами</div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Ключевые компетенции</label>
+            {{ form.competencies(class='form-control', rows=4, style='display:none;', id='competenciesField') }}
+            <div id="competenciesList" class="mb-2"></div>
+            <div class="input-group input-group-sm">
+              <input type="text" id="newCompetencyInput" class="form-control" placeholder="Новая компетенция...">
+              <button type="button" class="btn btn-success" onclick="addCompetencyItem()"><i class="bi-plus-lg"></i> Добавить</button>
+            </div>
+            <div class="form-text text-muted">Управляйте списком ключевых компетенций. Каждый пункт — отдельный элемент списка.</div>
+          </div>
+
+          <div class="mb-3">
+            {{ form.personal_message.label(class='form-label') }}
+            {{ form.personal_message(class='form-control', rows=3, placeholder='Цитата или личное обращение специалиста') }}
+          </div>
+
+          <div class="mb-3">
+            {{ form.order.label(class='form-label') }}
+            {{ form.order(class='form-control', type='number', min='0') }}
+          </div>
+
+          {{ form.submit(class='btn btn-primary') }}
+          <a href="{{ url_for('admin_new.personnel_page') }}" class="btn btn-secondary">Отмена</a>
+        </form>
+      </div>
+    </div>
+
+    {# ── Certificates Section (only on edit) ── #}
+    {% if not is_create and person %}
+    <div class="card mt-4">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Сертификаты и дипломы</h5>
+        <a href="{{ url_for('admin_new.certificate_create', personnel_id=person.id, next=url_for('admin_new.personnel_edit', person_id=person.id)) }}" class="btn btn-sm btn-success">
+          <i class="bi-plus-lg"></i> Добавить
+        </a>
+      </div>
+      <div class="card-body">
+        {% if certs %}
+          <div class="table-responsive">
+            <table class="table table-sm mb-0">
+              <thead>
+                <tr>
+                  <th style="width:80px;">Превью</th>
+                  <th>Описание</th>
+                  <th style="width:60px;">Порядок</th>
+                  <th style="width:100px;"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for c in certs %}
+                <tr>
+                  <td>
+                    {% if c.file %}
+                      {% set ext = c.file.rsplit('.', 1)[1].lower() if '.' in c.file else '' %}
+                      {% if ext in ('png', 'jpg', 'jpeg', 'gif', 'webp') %}
+                        <img src="{{ url_for('static', filename='certs/' ~ c.file) }}" style="height:50px;width:70px;object-fit:cover;border-radius:4px;" alt="{{ c.file }}">
+                      {% else %}
+                        <span class="badge bg-secondary">PDF</span>
+                      {% endif %}
+                    {% else %}
+                      <span class="text-muted">—</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <div class="fw-semibold small">{{ c.description|default('', true) }}</div>
+                    <small class="text-muted">{{ c.owner|default('', true) }}</small>
+                  </td>
+                  <td>{{ c.order }}</td>
+                  <td class="text-end">
+                    <a href="{{ url_for('admin_new.certificate_edit', item_id=c.id, next=url_for('admin_new.personnel_edit', person_id=person.id)) }}" class="btn btn-sm btn-outline-primary" title="Редактировать"><i class="bi-pencil"></i></a>
+                    <form method="POST" action="{{ url_for('admin_new.certificate_delete', item_id=c.id, next=url_for('admin_new.personnel_edit', person_id=person.id)) }}" style="display:inline;" onsubmit="return confirm('Удалить сертификат?')">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <button class="btn btn-sm btn-outline-danger" title="Удалить"><i class="bi-trash"></i></button>
+                    </form>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <p class="text-muted mb-0">У сотрудника пока нет сертификатов.</p>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Photo Picker Modal -->
+<div class="modal fade" id="photoPickerModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Выбрать фото из галереи</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-2">
+          <select class="form-select form-select-sm" id="pickerFolder" onchange="loadPickerPhotos()">
+            <option value="personnel">Персонал</option>
+            <option value="gallery">Основная галерея</option>
+            <option value="before">До / После</option>
+            <option value="after">Результаты</option>
+            <option value="procedures">Процедуры</option>
+          </select>
+        </div>
+        <div class="row g-2" id="pickerGrid">
+          <p class="text-muted">Загрузка...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Show existing photo preview on load
+(function() {
+  const val = document.getElementById('photoField').value;
+  if (val) {
+    const preview = document.getElementById('photoPreview');
+    preview.src = '/static/uploads/personnel/' + val;
+    preview.style.display = 'block';
+  }
+})();
+
+async function loadPickerPhotos() {
+  const folder = document.getElementById('pickerFolder').value;
+  const grid = document.getElementById('pickerGrid');
+  grid.innerHTML = '<p class="text-muted">Загрузка...</p>';
+
+  try {
+    const resp = await fetch('{{ url_for("admin_new.personnel_photos_json") }}?folder=' + folder);
+    const data = await resp.json();
+    grid.innerHTML = data.photos.map(p =>
+      '<div class="col-3">' +
+        '<div class="card h-100 picker-card" style="cursor:pointer;" ' +
+            'onclick="selectPhoto(\'' + p.filename + '\', \'' + p.url + '\')" ' +
+            'data-filename="' + p.filename + '">' +
+          '<img src="' + p.url + '" class="card-img-top" style="height:80px;object-fit:cover;">' +
+          '<div class="card-body p-1 text-center small text-truncate">' + p.filename + '</div>' +
+        '</div>' +
+      '</div>'
+    ).join('');
+  } catch (e) {
+    grid.innerHTML = '<p class="text-danger">Ошибка загрузки</p>';
+  }
+}
+
+function selectPhoto(filename, url) {
+  document.getElementById('photoField').value = filename;
+  const preview = document.getElementById('photoPreview');
+  preview.src = url;
+  preview.style.display = 'block';
+  bootstrap.Modal.getInstance(document.getElementById('photoPickerModal')).hide();
+}
+
+// Load on modal open
+document.getElementById('photoPickerModal').addEventListener('show.bs.modal', loadPickerPhotos);
+
+// ── Competencies dynamic list ──
+(function() {
+  const field = document.getElementById('competenciesField');
+  const list = document.getElementById('competenciesList');
+
+  function renderList() {
+    const items = field.value.split('\n').filter(s => s.trim());
+    list.innerHTML = items.length === 0
+      ? '<p class="text-muted small mb-0">Компетенции не добавлены</p>'
+      : items.map((item, i) =>
+          '<div class="input-group input-group-sm mb-1">' +
+            '<span class="input-group-text bg-light" style="width:32px;justify-content:center;">' + (i+1) + '</span>' +
+            '<input type="text" class="form-control" value="' + item.replace(/"/g,'&quot;') + '" onchange="updateCompetency(' + i + ', this.value)">' +
+            '<button class="btn btn-outline-danger" type="button" onclick="removeCompetency(' + i + ')"><i class="bi-x-lg"></i></button>' +
+          '</div>'
+        ).join('');
+  }
+
+  window.addCompetencyItem = function() {
+    const input = document.getElementById('newCompetencyInput');
+    const val = input.value.trim();
+    if (!val) return;
+    const items = field.value.split('\n').filter(s => s.trim());
+    items.push(val);
+    field.value = items.join('\n');
+    input.value = '';
+    renderList();
+  };
+
+  window.updateCompetency = function(index, value) {
+    const items = field.value.split('\n').filter(s => s.trim());
+    items[index] = value.trim();
+    field.value = items.join('\n');
+    renderList();
+  };
+
+  window.removeCompetency = function(index) {
+    const items = field.value.split('\n').filter(s => s.trim());
+    items.splice(index, 1);
+    field.value = items.join('\n');
+    renderList();
+  };
+
+  // Press Enter to add
+  document.getElementById('newCompetencyInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); addCompetencyItem(); }
+  });
+
+  renderList();
+})();
+</script>
+{% endblock %}

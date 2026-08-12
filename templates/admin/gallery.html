@@ -1,0 +1,208 @@
+{% extends 'admin/base.html' %}
+{% block title %}Галерея{% endblock %}
+{% block content %}
+<h3 class="mb-3">Галерея</h3>
+
+<div class="row g-3">
+  <!-- Folder sidebar -->
+  <div class="col-md-3">
+    <div class="card">
+      <div class="card-header fw-bold">Папки</div>
+      <div class="list-group list-group-flush" id="folderList">
+        {% for f in folders %}
+        <a href="{{ url_for('admin_new.gallery_page', folder=f) }}"
+           class="list-group-item list-group-item-action d-flex justify-content-between align-items-center {{ 'active' if f == current_folder }}">
+          <span><i class="bi-folder me-2"></i>{{ folder_labels.get(f, f) }}</span>
+          <span class="badge bg-secondary rounded-pill">{{ folder_counts.get(f, 0) }}</span>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Upload card -->
+    <div class="card mt-3">
+      <div class="card-header fw-bold">Загрузить</div>
+      <div class="card-body">
+        <form id="uploadForm" enctype="multipart/form-data">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="folder" value="{{ current_folder }}">
+          <div class="mb-2">
+            <input class="form-control form-control-sm" type="file" name="file" accept="image/*" required>
+          </div>
+          <button class="btn btn-primary btn-sm w-100" type="submit">
+            <i class="bi-upload me-1"></i> Загрузить в «{{ folder_labels.get(current_folder, current_folder) }}»
+          </button>
+        </form>
+        <div id="uploadStatus" class="mt-2 small"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Image grid -->
+  <div class="col-md-9">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span class="fw-bold">{{ folder_labels.get(current_folder, current_folder) }}</span>
+        <span class="badge bg-primary">{{ images|length }} фото</span>
+      </div>
+      <div class="card-body">
+        {% if images %}
+        <div class="row g-2" id="imageGrid">
+          {% for img in images %}
+          <div class="col-6 col-md-4 col-lg-3 image-card"
+               data-filename="{{ img.filename }}"
+               data-folder="{{ img.folder }}"
+               draggable="true">
+            <div class="card h-100 {{ 'border-success' if img.is_active else 'border-secondary opacity-50' }}">
+              <img src="{{ url_for('static', filename='uploads/' + img.folder + '/' + img.filename) }}"
+                   class="card-img-top" style="height:120px;object-fit:cover;"
+                   alt="{{ img.filename }}" loading="lazy">
+              <div class="card-body p-1 text-center small">
+                <div class="text-truncate" title="{{ img.filename }}">{{ img.filename }}</div>
+                <div class="btn-group btn-group-sm mt-1 w-100">
+                  <button class="btn btn-outline-warning btn-sm"
+                          onclick="togglePhoto('{{ img.filename }}','{{ img.folder }}')"
+                          title="{{ 'Отключить' if img.is_active else 'Активировать' }}">
+                    <i class="bi-{{ 'eye-slash' if img.is_active else 'eye' }}"></i>
+                  </button>
+                  <button class="btn btn-outline-danger btn-sm"
+                          onclick="deletePhoto('{{ img.filename }}','{{ img.folder }}')"
+                          title="Удалить">
+                    <i class="bi-trash"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-muted text-center py-5">Нет фото в этой папке. Загрузите через форму слева.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div id="toastContainer" class="toast-container position-fixed top-0 end-0 p-3" style="z-index:9999;"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+const toastContainer = document.getElementById('toastContainer');
+
+function showToast(msg, type) {
+  const bg = type === 'success' ? 'bg-success' : 'bg-danger';
+  const icon = type === 'success' ? '✓' : '✗';
+  const el = document.createElement('div');
+  el.className = 'toast align-items-center text-white border-0 ' + bg;
+  el.innerHTML = '<div class="d-flex"><div class="toast-body fw-bold"><span class="me-2">' + icon + '</span>' + msg + '</div><button class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>';
+  toastContainer.appendChild(el);
+  new bootstrap.Toast(el, {delay: 3000}).show();
+  el.addEventListener('hidden.bs.toast', () => el.remove());
+}
+
+function postJSON(url, body) {
+  return fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'X-CSRFToken': csrfToken
+    },
+    body: 'csrf_token=' + encodeURIComponent(csrfToken) + '&' + body
+  }).then(r => r.json());
+}
+
+// Upload
+document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  const statusEl = document.getElementById('uploadStatus');
+  statusEl.innerHTML = '<span class="text-info">Загрузка...</span>';
+
+  const fd = new FormData(form);
+  try {
+    const resp = await fetch('{{ url_for("admin_new.gallery_upload") }}', {
+      method: 'POST',
+      headers: {'X-CSRFToken': csrfToken},
+      body: fd
+    });
+    const data = await resp.json();
+    if (data.success) {
+      showToast('Фото загружено', 'success');
+      setTimeout(() => location.reload(), 800);
+    } else {
+      statusEl.innerHTML = '<span class="text-danger">' + data.error + '</span>';
+      showToast(data.error, 'error');
+    }
+  } catch (err) {
+    statusEl.innerHTML = '<span class="text-danger">Ошибка сети</span>';
+  }
+});
+
+// Drag-and-drop between folders
+document.querySelectorAll('.image-card').forEach(card => {
+  card.addEventListener('dragstart', e => {
+    e.dataTransfer.setData('text/plain', JSON.stringify({
+      filename: card.dataset.filename,
+      from_folder: card.dataset.folder
+    }));
+    card.style.opacity = '0.5';
+  });
+  card.addEventListener('dragend', e => { card.style.opacity = '1'; });
+});
+
+document.querySelectorAll('#folderList .list-group-item').forEach(folderLink => {
+  folderLink.addEventListener('dragover', e => {
+    e.preventDefault();
+    folderLink.classList.add('bg-light');
+  });
+  folderLink.addEventListener('dragleave', e => {
+    folderLink.classList.remove('bg-light');
+  });
+  folderLink.addEventListener('drop', async e => {
+    e.preventDefault();
+    folderLink.classList.remove('bg-light');
+    const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+    const toFolder = new URL(folderLink.href).searchParams.get('folder') || 'gallery';
+
+    if (data.from_folder === toFolder) return;
+
+    const resp = await postJSON('{{ url_for("admin_new.gallery_move") }}',
+      'filename=' + encodeURIComponent(data.filename) +
+      '&from_folder=' + encodeURIComponent(data.from_folder) +
+      '&to_folder=' + encodeURIComponent(toFolder));
+    if (resp.success) {
+      showToast('Фото перемещено в «' + toFolder + '»', 'success');
+      setTimeout(() => location.reload(), 800);
+    } else {
+      showToast(resp.error || 'Ошибка', 'error');
+    }
+  });
+});
+
+// Toggle
+function togglePhoto(filename, folder) {
+  if (!confirm('Изменить статус?')) return;
+  postJSON('{{ url_for("admin_new.gallery_toggle") }}',
+    'filename=' + encodeURIComponent(filename) + '&folder=' + encodeURIComponent(folder))
+    .then(data => {
+      showToast(data.is_active ? 'Активировано' : 'Отключено', 'success');
+      setTimeout(() => location.reload(), 800);
+    });
+}
+
+// Delete
+function deletePhoto(filename, folder) {
+  if (!confirm('Удалить «' + filename + '» безвозвратно?')) return;
+  postJSON('{{ url_for("admin_new.gallery_delete") }}',
+    'filename=' + encodeURIComponent(filename) + '&folder=' + encodeURIComponent(folder))
+    .then(data => {
+      showToast('Фото удалено', 'success');
+      setTimeout(() => location.reload(), 800);
+    });
+}
+</script>
+{% endblock %}

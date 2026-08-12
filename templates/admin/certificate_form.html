@@ -1,0 +1,68 @@
+{% extends 'admin/base.html' %}
+{% block title %}{{ 'Редактировать' if item else 'Добавить' }} сертификат{% endblock %}
+
+{% block content %}
+<h2>{{ 'Редактировать' if item else 'Добавить' }} сертификат</h2>
+
+<form method="POST" enctype="multipart/form-data" class="mt-3">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <div class="card">
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">Сотрудник</label>
+          {{ form.personnel_id(class='form-select') }}
+          {% for err in form.personnel_id.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">{{ form.owner.label.text }}</label>
+          {{ form.owner(class='form-control') }}
+          {% for err in form.owner.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+        </div>
+        <div class="col-12">
+          <label class="form-label">{{ form.description.label.text }}</label>
+          {{ form.description(class='form-control', rows=3) }}
+          {% for err in form.description.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Файл сертификата (изображение или PDF)</label>
+          {{ form.cert_file(class='form-control') }}
+          {% for err in form.cert_file.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+          <div class="form-text">Разрешены: png, jpg, jpeg, gif, webp, pdf</div>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">{{ form.order.label.text }}</label>
+          {{ form.order(class='form-control', type='number') }}
+          {% for err in form.order.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Текущий файл</label>
+          {{ form.file(class='form-control') }}
+        </div>
+      </div>
+
+      {% if item and item.file %}
+        {% set ext = item.file.rsplit('.', 1)[1].lower() if '.' in item.file else '' %}
+        <div class="mt-3">
+          <label class="form-label">Просмотр:</label>
+          <div>
+            {% if ext in ('png', 'jpg', 'jpeg', 'gif', 'webp') %}
+              <img src="{{ url_for('static', filename='certs/' ~ item.file) }}" style="max-height:200px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.1);" alt="{{ item.file }}">
+            {% else %}
+              <a href="{{ url_for('static', filename='certs/' ~ item.file) }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                <i class="bi-file-earmark-pdf"></i> Открыть PDF
+              </a>
+            {% endif %}
+          </div>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="mt-3 d-flex gap-2">
+    {{ form.submit(class='btn btn-primary') }}
+    <a href="{{ url_for('admin_new.certificate_list') }}" class="btn btn-secondary">Отмена</a>
+  </div>
+</form>
+{% endblock %}

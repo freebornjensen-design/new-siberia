@@ -1,0 +1,69 @@
+{% extends 'admin/base.html' %}
+{% block title %}{{ 'Создать' if is_create else 'Редактировать' }} отзыв{% endblock %}
+{% block content %}
+<h3 class="mb-3">{{ 'Новый отзыв' if is_create else 'Редактирование отзыва' }}</h3>
+
+<div class="row">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-body">
+        <form method="post" enctype="multipart/form-data" novalidate>
+          {{ form.hidden_tag() }}
+
+          <div class="mb-3">
+            <label class="form-label">Имя</label>
+            {{ form.name(class='form-control' + (' is-invalid' if form.name.errors else '')) }}
+            {% for e in form.name.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Текст отзыва</label>
+            {{ form.text(class='form-control' + (' is-invalid' if form.text.errors else ''), rows=5) }}
+            {% for e in form.text.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div class="row mb-3">
+            <div class="col-md-4">
+              <label class="form-label">Оценка (1-5)</label>
+              {{ form.rating(class='form-control' + (' is-invalid' if form.rating.errors else '')) }}
+              {% for e in form.rating.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Роль</label>
+              {{ form.author_role(class='form-control' + (' is-invalid' if form.author_role.errors else ''), placeholder='Пациент, Родственник...') }}
+              {% for e in form.author_role.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Порядок</label>
+              {{ form.order(class='form-control' + (' is-invalid' if form.order.errors else '')) }}
+              {% for e in form.order.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Скриншот отзыва (из переписки/приложения)</label>
+            {{ form.screenshot_file(class='form-control' + (' is-invalid' if form.screenshot_file.errors else '')) }}
+            {% for e in form.screenshot_file.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+            <div class="form-text">Поддерживаются: PNG, JPG, JPEG, GIF, WebP. Максимум 10 MB.</div>
+          </div>
+
+          {% if not is_create and item and item.screenshot %}
+          <div class="mb-3 p-3 text-center" style="background:#f8f9fa;border-radius:8px;border:1px solid #dee2e6;">
+            <strong>Текущий скриншот:</strong><br>
+            <img src="{{ url_for('static', filename='uploads/testimonials/' ~ item.screenshot) }}" alt="скриншот"
+                 style="max-width:200px;max-height:200px;object-fit:contain;margin-top:8px;border-radius:8px;border:1px solid #dee2e6;">
+            <br><small class="text-muted">{{ item.screenshot }}</small>
+            <div class="mt-2">
+              <label class="form-label" style="font-weight:400;">Заменить — выберите новый файл выше</label>
+            </div>
+          </div>
+          {% endif %}
+
+          {{ form.submit(class='btn btn-primary') }}
+          <a href="{{ url_for('admin_new.testimonial_list') }}" class="btn btn-secondary">Отмена</a>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

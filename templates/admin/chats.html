@@ -1,0 +1,92 @@
+{% extends 'admin/base.html' %}
+{% block title %}Чаты — Админ-панель{% endblock %}
+
+{% block content %}
+<h3 class="mb-3"><i class="bi-chat-dots"></i> Чаты с посетителями</h3>
+
+<div class="card">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead>
+          <tr>
+            <th>Посетитель</th>
+            <th>Последнее сообщение</th>
+            <th>Время</th>
+            <th>Статус</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="chatSessionsBody">
+          <tr><td colspan="5" class="text-center text-muted py-4">Загрузка...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script>
+(function() {
+  const tbody = document.getElementById('chatSessionsBody');
+  let socket = null;
+
+  // Load sessions
+  async function loadSessions() {
+    try {
+      const resp = await fetch('/api/chat/admin/sessions');
+      const data = await resp.json();
+      if (!data.ok) { tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Ошибка загрузки</td></tr>'; return; }
+      if (data.sessions.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">Нет активных чатов</td></tr>';
+        return;
+      }
+      tbody.innerHTML = data.sessions.map(function(s) {
+        const time = new Date(s.last_time).toLocaleString('ru-RU');
+        const unreadBadge = s.unread > 0 ? '<span class="badge bg-danger rounded-pill ms-2">' + s.unread + '</span>' : '';
+        const statusClass = s.unread > 0 ? 'bg-warning text-dark' : 'bg-success';
+        const statusText = s.unread > 0 ? 'Новое' : 'Прочитано';
+        return '<tr>' +
+          '<td class="fw-semibold">' + escapeHtml(s.name) + '</td>' +
+          '<td class="text-muted small">' + escapeHtml(s.last_message) + '</td>' +
+          '<td class="small">' + time + '</td>' +
+          '<td><span class="badge ' + statusClass + '">' + statusText + '</span></td>' +
+          '<td><a href="/admin/chats/' + encodeURIComponent(s.session_id) + '" class="btn btn-sm btn-outline-primary">Открыть</a></td>' +
+        '</tr>';
+      }).join('');
+    } catch (e) {
+      tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Ошибка: ' + e.message + '</td></tr>';
+    }
+  }
+
+  function escapeHtml(text) {
+    if (!text) return '';
+    var div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  // SocketIO - real-time notifications
+  function initSocket() {
+    try {
+      socket = io({ transports: ['websocket', 'polling'] });
+      socket.on('connect', function() {
+        socket.emit('join_admin');
+      });
+      socket.on('admin_new_message', function() {
+        // Reload session list when new message arrives
+        loadSessions();
+      });
+    } catch (e) {
+      // Polling fallback
+      setInterval(loadSessions, 5000);
+    }
+  }
+
+  loadSessions();
+  initSocket();
+})();
+</script>
+{% endblock %}

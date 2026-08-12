@@ -1,0 +1,258 @@
+{% extends 'admin/base.html' %}
+{% from 'admin/_macros.html' import field %}
+{% block title %}{{ 'Создать' if is_create else 'Редактировать' }} {{ cfg.title_singular }}{% endblock %}
+{% block content %}
+<h3 class="mb-3">{{ 'Новая запись' if is_create else 'Редактирование: ' + cfg.title_singular }}</h3>
+
+<div class="row">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-body">
+        <form method="post" enctype="multipart/form-data" novalidate>
+          {{ form.hidden_tag() }}
+          {% if entity == 'advantages' %}
+            {# advantages: wrap FA and SVG fields in toggleable sections #}
+            {% for f in form if f.type not in ('CSRFTokenField', 'HiddenField', 'SubmitField') %}
+              {% if f.name == 'fa_icon' %}
+                <div id="fa-section" class="fa-section">{{ field(f) }}</div>
+              {% elif f.name in ('svg_upload', 'svg_file') %}
+                <div id="svg-section" class="svg-section svg-section-hidden">
+                  {% if f.name == 'svg_file' %}
+                    {{ field(f) }}
+                    <div class="svg-gallery" id="svg-gallery"></div>
+                    <div class="svg-preview-current" id="svg-current-preview">
+                      {% if form.svg_file.data %}
+                        <strong>Текущая SVG иконка:</strong><br>
+                        <img src="{{ url_for('static', filename='uploads/svg_icons/' ~ form.svg_file.data) }}" alt="{{ form.svg_file.data }}"><br>
+                        <span style="font-size:0.8rem;color:#666;">{{ form.svg_file.data }}</span>
+                      {% else %}
+                        <span style="color:#999;">SVG иконка не выбрана</span>
+                      {% endif %}
+                    </div>
+                  {% else %}
+                    {{ field(f) }}
+                    <div class="svg-upload-area" id="svg-upload-area">
+                      Выберите SVG файл для загрузки. После сохранения формы он появится в галерее.
+                    </div>
+                  {% endif %}
+                </div>
+              {% elif f.name == 'icon_type' %}
+                {{ field(f) }}
+              {% else %}
+                {{ field(f) }}
+              {% endif %}
+            {% endfor %}
+          {% else %}
+            {% for f in form if f.type not in ('CSRFTokenField', 'HiddenField', 'SubmitField') %}
+              {{ field(f) }}
+            {% endfor %}
+          {% endif %}
+          {{ form.submit(class='btn btn-primary') }}
+          <a href="{{ url_for('admin_new.crud_list', entity=entity) }}" class="btn btn-secondary">Отмена</a>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  {% if entity == 'advantages' %}
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@4.3.0/fonts/remixicon.css" rel="stylesheet">
+  <style>
+    .svg-gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+      gap: 10px;
+      margin-top: 10px;
+      margin-bottom: 16px;
+      padding: 12px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      border: 1px solid #dee2e6;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .svg-gallery-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 8px;
+      border: 2px solid transparent;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      background: #fff;
+    }
+    .svg-gallery-item:hover {
+      border-color: #1E90FF;
+      background: #e8f4ff;
+    }
+    .svg-gallery-item.selected {
+      border-color: #1E90FF;
+      background: #d0ebff;
+      box-shadow: 0 0 0 2px rgba(30, 144, 255, 0.3);
+    }
+    .svg-gallery-item img {
+      width: 40px;
+      height: 40px;
+      object-fit: contain;
+      margin-bottom: 4px;
+    }
+    .svg-gallery-item .svg-name {
+      font-size: 0.65rem;
+      color: #666;
+      text-align: center;
+      word-break: break-all;
+      max-width: 72px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .svg-upload-area {
+      margin-top: 8px;
+      padding: 12px;
+      background: #fff3cd;
+      border: 1px dashed #ffc107;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .svg-preview-current {
+      margin-top: 10px;
+      padding: 16px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      text-align: center;
+      border: 1px solid #dee2e6;
+    }
+    .svg-preview-current img {
+      max-width: 64px;
+      max-height: 64px;
+    }
+    .fa-section, .svg-section {
+      transition: opacity 0.2s ease;
+    }
+    .svg-section-hidden, .fa-section-hidden {
+      display: none !important;
+    }
+    .svg-gallery-empty {
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 24px;
+      color: #999;
+      font-size: 0.9rem;
+    }
+    .svg-upload-spinner {
+      display: inline-block;
+      width: 1rem;
+      height: 1rem;
+      border: 2px solid #ccc;
+      border-top-color: #1E90FF;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+  <script>
+  document.addEventListener('DOMContentLoaded', function () {
+    var iconTypeSel = document.getElementById('icon_type');
+    var faSection = document.getElementById('fa-section');
+    var svgSection = document.getElementById('svg-section');
+    var faSel = document.getElementById('fa_icon');
+    var svgFileInput = document.getElementById('svg_file');
+    var svgUploadInput = document.getElementById('svg_upload');
+    var galleryContainer = document.getElementById('svg-gallery');
+    var uploadArea = document.getElementById('svg-upload-area');
+    var currentPreview = document.getElementById('svg-current-preview');
+
+    if (!iconTypeSel || !faSection || !svgSection) return;
+
+    // ── FA preview ──
+    if (faSel) {
+      var faPreview = document.createElement('div');
+      faPreview.style.cssText = 'margin-top: 8px; font-size: 2rem; color: #1E90FF;';
+      faSel.parentNode.appendChild(faPreview);
+
+      function updateFaPreview() {
+        var val = faSel.value;
+        if (val) {
+          faPreview.innerHTML = '<i class="' + val + '"></i> <span style="font-size:0.9rem;color:#666;margin-left:8px;">.' + val + '</span>';
+        } else {
+          faPreview.innerHTML = '<span style="font-size:0.9rem;color:#999;">(иконка не выбрана)</span>';
+        }
+      }
+      faSel.addEventListener('change', updateFaPreview);
+      updateFaPreview();
+    }
+
+    // ── Toggle FA / SVG sections ──
+    function toggleSections() {
+      var isSvg = iconTypeSel.value === 'svg';
+      faSection.classList.toggle('fa-section-hidden', isSvg);
+      svgSection.classList.toggle('svg-section-hidden', !isSvg);
+    }
+
+    iconTypeSel.addEventListener('change', toggleSections);
+    toggleSections();
+
+    // ── Load SVG gallery ──
+    function loadSvgGallery() {
+      if (!galleryContainer) return;
+      galleryContainer.innerHTML = '<div class="svg-gallery-empty"><span class="svg-upload-spinner"></span> Загрузка...</div>';
+
+      fetch('/admin/advantages/svg-list.json?_t=' + Date.now())
+        .then(function(r) { return r.json(); })
+        .then(function(files) {
+          if (!files || files.length === 0) {
+            galleryContainer.innerHTML = '<div class="svg-gallery-empty">Нет загруженных SVG иконок. Загрузите первую!</div>';
+            return;
+          }
+          galleryContainer.innerHTML = '';
+          files.forEach(function(f) {
+            var item = document.createElement('div');
+            item.className = 'svg-gallery-item';
+            if (svgFileInput && svgFileInput.value === f.filename) {
+              item.classList.add('selected');
+            }
+            item.innerHTML = '<img src="' + f.url + '" alt="' + f.filename + '" loading="lazy"><span class="svg-name">' + f.filename + '</span>';
+            item.addEventListener('click', function() {
+              // Deselect all
+              galleryContainer.querySelectorAll('.svg-gallery-item').forEach(function(el) { el.classList.remove('selected'); });
+              item.classList.add('selected');
+              // Set hidden field
+              if (svgFileInput) svgFileInput.value = f.filename;
+              // Update current preview
+              if (currentPreview) {
+                currentPreview.innerHTML = '<strong>Текущая SVG иконка:</strong><br><img src="' + f.url + '" alt="' + f.filename + '"><br><span style="font-size:0.8rem;color:#666;">' + f.filename + '</span>';
+              }
+            });
+            galleryContainer.appendChild(item);
+          });
+        })
+        .catch(function(err) {
+          galleryContainer.innerHTML = '<div class="svg-gallery-empty">Ошибка загрузки списка SVG: ' + err.message + '</div>';
+        });
+    }
+
+    loadSvgGallery();
+
+    // ── Upload handler ──
+    if (svgUploadInput) {
+      svgUploadInput.addEventListener('change', function() {
+        if (svgUploadInput.files && svgUploadInput.files.length > 0) {
+          var fileName = svgUploadInput.files[0].name;
+          // Auto-set svg_file to the uploaded filename (server will rename)
+          // We'll refresh the gallery after form submission
+          if (uploadArea) {
+            uploadArea.innerHTML = '<div style="color:#856404;">Файл выбран: <strong>' + fileName + '</strong>. Сохраните форму для загрузки.</div>';
+          }
+        }
+      });
+    }
+
+  });
+  </script>
+  {% endif %}
+{% endblock %}

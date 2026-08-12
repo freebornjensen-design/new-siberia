@@ -1,0 +1,16 @@
+Flask>=2.0
+Flask-SQLAlchemy
+Flask-Migrate
+Flask-WTF
+Flask-SocketIO
+gevent
+psycopg2-binary
+python-dotenv
+requests
+aiogram>=3.0
+flask-admin
+alembic
+aiohttp
+Flask-Login
+Pillow
+groq

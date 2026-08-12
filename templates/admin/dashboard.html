@@ -1,0 +1,74 @@
+{% extends 'admin/base.html' %}
+{% block title %}Дашборд{% endblock %}
+{% block content %}
+<h3 class="mb-4">Дашборд</h3>
+
+{% set stats = [
+  ('Персонал', personnel_count, 'bi-people', 'bg-primary'),
+  ('Статьи', articles_count, 'bi-journal-text', 'bg-success'),
+  ('Услуги', services_count, 'bi-grid', 'bg-info'),
+  ('Цены', price_items_count, 'bi-cash-stack', 'bg-dark'),
+  ('Отзывы', testimonials_count, 'bi-chat-quote', 'bg-warning'),
+  ('Фото', gallery_count, 'bi-images', 'bg-danger'),
+  ('Заявки', contacts_count, 'bi-telephone', 'bg-secondary'),
+  ('Лицензии', clinic_licenses_count, 'bi-patch-check', 'bg-primary'),
+  ('FAQ', faq_count, 'bi-question-circle', 'bg-info'),
+  ('Меню', menu_items_count, 'bi-menu-button-wide', 'bg-dark'),
+] %}
+<div class="row g-3">
+  {% for label, count, icon, bg in stats %}
+  <div class="col-md-4 col-lg-3 col-xl-2">
+    <div class="card card-stat {{ bg }} text-white">
+      <div class="card-body d-flex align-items-center gap-3">
+        <i class="{{ icon }} fs-2 opacity-75"></i>
+        <div>
+          <div class="fs-4 fw-bold">{{ count }}</div>
+          <div class="small opacity-75">{{ label }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="row mt-4">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header fw-bold">Последние заявки</div>
+      <div class="card-body p-0">
+        {% if recent_contacts %}
+        <table class="table table-sm mb-0">
+          <thead><tr><th>Имя</th><th>Телефон</th><th>Дата</th></tr></thead>
+          <tbody>
+            {% for c in recent_contacts[:5] %}
+            <tr><td>{{ c.name or '—' }}</td><td>{{ c.phone }}</td><td>{{ c.created_at.strftime('%d.%m.%Y %H:%M') }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <p class="text-muted p-3 mb-0">Заявок пока нет</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header fw-bold">Последние статьи</div>
+      <div class="card-body p-0">
+        {% if recent_articles %}
+        <table class="table table-sm mb-0">
+          <thead><tr><th>Заголовок</th><th>Дата</th></tr></thead>
+          <tbody>
+            {% for a in recent_articles[:5] %}
+            <tr><td>{{ a.title }}</td><td>{{ a.created_at.strftime('%d.%m.%Y') }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <p class="text-muted p-3 mb-0">Статей пока нет</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

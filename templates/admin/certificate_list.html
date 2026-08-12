@@ -1,0 +1,69 @@
+{% extends 'admin/base.html' %}
+{% block title %}Сертификаты{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2 class="mb-0">Сертификаты</h2>
+  <a href="{{ url_for('admin_new.certificate_create') }}" class="btn btn-success">
+    <i class="bi-plus-lg"></i> Добавить сертификат
+  </a>
+</div>
+
+<div class="card">
+  <div class="card-body p-0">
+    <table class="table table-striped mb-0">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Файл</th>
+          <th>Сотрудник</th>
+          <th>Описание</th>
+          <th>Порядок</th>
+          <th>Дата</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in certs %}
+        <tr>
+          <td>{{ c.id }}</td>
+          <td>
+            {% if c.file %}
+              {% set ext = c.file.rsplit('.', 1)[1].lower() if '.' in c.file else '' %}
+              {% if ext in ('png', 'jpg', 'jpeg', 'gif', 'webp') %}
+                <img src="{{ url_for('static', filename='certs/' ~ c.file) }}" style="height:60px;max-width:100px;object-fit:cover;border-radius:6px;" alt="{{ c.file }}">
+              {% else %}
+                <span class="badge bg-secondary">PDF</span> {{ c.file }}
+              {% endif %}
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if c.personnel %}
+              <a href="{{ url_for('admin_new.personnel_edit', person_id=c.personnel_id) }}">{{ c.personnel.name }}</a>
+            {% else %}
+              <span class="text-muted">{{ c.owner or '—' }}</span>
+            {% endif %}
+          </td>
+          <td>{{ c.description|default('', true)|truncate(60) }}</td>
+          <td>{{ c.order }}</td>
+          <td>{{ c.created_at.strftime('%d.%m.%Y') if c.created_at else '' }}</td>
+          <td class="text-end">
+            <a href="{{ url_for('admin_new.certificate_edit', item_id=c.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi-pencil"></i></a>
+            <form method="POST" action="{{ url_for('admin_new.certificate_delete', item_id=c.id) }}" style="display:inline;" onsubmit="return confirm('Удалить сертификат?')">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-sm btn-outline-danger"><i class="bi-trash"></i></button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="7" class="text-center text-muted py-4">Сертификатов пока нет</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
