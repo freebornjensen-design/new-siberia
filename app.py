@@ -310,6 +310,47 @@ def create_app():
             mimetype='text/plain'
         )
 
+    # ── llms.txt (LLM-readable site overview, llmstxt.org spec) ────────
+    @app.route('/llms.txt')
+    def llms_txt():
+        def _setting(key, default=''):
+            s = Setting.query.filter_by(key=key).first()
+            return (s.value or default) if s else default
+
+        site_title = _setting('site_title', 'Новая Сибирь')
+        lines = []
+        lines.append(f'# {site_title} — реабилитационный центр')
+        lines.append('')
+        lines.append(
+            '> Реабилитационный центр «Новая Сибирь» — комплексное лечение '
+            'наркотической и алкогольной зависимости: детоксикация, стационарная '
+            'реабилитация, амбулаторные программы и постпрограммное сопровождение. '
+            'Анонимно и круглосуточно.'
+        )
+        lines.append('')
+        lines.append('## Основные разделы')
+        lines.append('')
+        lines.append(f'- [Главная]({SITE_URL}/): обзор услуг, специалистов, цен, отзывов и контактов.')
+        lines.append(f'- [Услуги]({SITE_URL}/#services): перечень программ лечения.')
+        lines.append(f'- [Цены]({SITE_URL}/#prices): стоимость консультаций и реабилитации.')
+        lines.append(f'- [Специалисты]({SITE_URL}/#specialists): врачи, психотерапевты и консультанты.')
+        lines.append(f'- [FAQ]({SITE_URL}/#faq): частые вопросы о реабилитации и условиях.')
+        lines.append(f'- [Контакты]({SITE_URL}/#contacts): телефон, адрес, форма обратной связи.')
+        lines.append('')
+
+        services = Service.query.filter(
+            Service.slug.isnot(None), Service.slug != ''
+        ).order_by(Service.order, Service.id).all()
+        if services:
+            lines.append('## Услуги')
+            lines.append('')
+            for s in services:
+                desc = (s.meta_description or s.description or '').strip()
+                lines.append(f'- [{s.title}]({SITE_URL}/services/{s.slug}): {desc}')
+            lines.append('')
+
+        return Response('\n'.join(lines), mimetype='text/markdown; charset=utf-8')
+
     # ── Security headers (HSTS, CSP, X-Frame-Options, etc.) ────────────
     @app.after_request
     def security_headers(resp):
