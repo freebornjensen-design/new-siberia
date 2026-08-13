@@ -360,6 +360,7 @@ def create_app():
 
         resp.headers['X-Content-Type-Options'] = 'nosniff'
         resp.headers['X-Frame-Options'] = 'DENY'
+        resp.headers['Cross-Origin-Opener-Policy'] = 'same-origin'
         resp.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
         resp.headers['Content-Security-Policy'] = (
             "default-src 'self'; "
