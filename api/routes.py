@@ -166,6 +166,7 @@ def get_services():
         items.append({
             'id': s.id,
             'title': s.title,
+            'slug': s.slug,
             'description': s.description,
             'icon': s.icon,
             'order': s.order,

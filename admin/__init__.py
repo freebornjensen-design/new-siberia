@@ -13,4 +13,4 @@ admin_bp = Blueprint(
 )
 
 # Import routes so they register with the blueprint
-from admin import routes, gallery, personnel, daily_audio, certificates, advantages, about, testimonials  # noqa: E402, F401
+from admin import routes, gallery, personnel, daily_audio, certificates, advantages, about, testimonials, seo  # noqa: E402, F401

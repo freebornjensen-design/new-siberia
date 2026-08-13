@@ -96,6 +96,7 @@ export interface Settings {
 export interface ServiceItem {
   id: number;
   title: string;
+  slug: string | null;
   description: string | null;
   icon: string | null;
   order: number;

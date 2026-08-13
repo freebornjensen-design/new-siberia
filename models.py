@@ -75,8 +75,11 @@ class Service(db.Model):
     __tablename__ = 'services'
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(255), nullable=False)
+    slug = db.Column(db.String(255), unique=True, nullable=True, index=True)  # URL: /services/<slug>
     description = db.Column(db.Text, nullable=True)
+    meta_title = db.Column(db.String(255), nullable=True)  # SEO title (fallback: title)
     meta_description = db.Column(db.Text, nullable=True)  # SEO meta description (независимо от видимого описания)
+    keywords = db.Column(db.String(500), nullable=True)  # SEO keywords
     icon = db.Column(db.String(50), nullable=True)  # icon name/identifier
     order = db.Column(db.Integer, default=0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)

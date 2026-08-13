@@ -2,7 +2,9 @@ import gevent.monkey
 gevent.monkey.patch_all()
 
 import os
+import re
 import time
+from html import escape
 from flask import Flask, request, redirect, url_for, Response, send_from_directory
 from flask_login import LoginManager
 from flask_wtf.csrf import CSRFProtect
@@ -59,6 +61,13 @@ def create_app():
                 'address': 'г. Новосибирск, в черте города',
                 'work_hours': 'Круглосуточно, 7 дней в неделю',
                 'site_headline': 'Реабилитационный центр — профессиональная помощь зависимым',
+                'seo_title': 'Новая Сибирь — реабилитационный центр | Помощь при зависимостях',
+                'seo_description': 'Реабилитационный центр «Новая Сибирь» — комплексное лечение наркотической и алкогольной зависимости. Опытные специалисты, комфортные условия, поддержка 24/7.',
+                'seo_keywords': 'реабилитация, лечение зависимости, вывод из запоя, кодирование, наркозависимость, алкоголизм',
+                'og_title': 'Новая Сибирь — реабилитационный центр',
+                'og_description': 'Комплексное лечение наркотической и алкогольной зависимости. Опытные специалисты, комфортные условия, поддержка на каждом этапе пути к выздоровлению.',
+                'og_image': '',
+                'gtm_id': 'GTM-TC4LM99C',
             }
             for key, val in defaults.items():
                 if not Setting.query.filter_by(key=key).first():
@@ -167,6 +176,61 @@ def create_app():
     # ── SPA serving (React build in dist/) ─────────────────────────────
     DIST_DIR = os.path.join(app.root_path, 'dist')
     SPA_SKIP_PREFIXES = ('admin', 'api', 'static', 'uploads')
+    SITE_URL = os.getenv('SITE_URL', 'https://xn----9sbbbck9a5agbgyb0md.xn--p1ai')
+
+    def _read_index_html():
+        with open(os.path.join(DIST_DIR, 'index.html'), encoding='utf-8') as f:
+            return f.read()
+
+    def _replace_meta(html, attr, key, value):
+        """Replace a meta tag's content, or insert it right after <title>."""
+        pattern = re.compile(
+            r'(<meta\s+' + attr + r'="' + re.escape(key) + r'"\s+content=")[^"]*(")',
+            re.IGNORECASE,
+        )
+        if value:
+            if pattern.search(html):
+                return pattern.sub(
+                    lambda m: m.group(1) + escape(value) + m.group(2),
+                    html, count=1,
+                )
+            insertion = f'<meta {attr}="{key}" content="{escape(value)}" />'
+            return re.sub(
+                r'(<title>.*?</title>)',
+                lambda m: m.group(1) + '\n    ' + insertion,
+                html, count=1, flags=re.IGNORECASE | re.DOTALL,
+            )
+        return html
+
+    def _inject_meta(html, meta):
+        title = meta.get('title')
+        if title:
+            html = re.sub(
+                r'<title>.*?</title>',
+                f'<title>{escape(title)}</title>',
+                html, count=1, flags=re.IGNORECASE | re.DOTALL,
+            )
+        html = _replace_meta(html, 'name', 'description', meta.get('description') or '')
+        html = _replace_meta(html, 'name', 'keywords', meta.get('keywords') or '')
+        html = _replace_meta(html, 'property', 'og:title', meta.get('og_title') or '')
+        html = _replace_meta(html, 'property', 'og:description', meta.get('og_description') or '')
+        html = _replace_meta(html, 'property', 'og:url', meta.get('og_url') or '')
+        html = _replace_meta(html, 'property', 'og:image', meta.get('og_image') or '')
+        canonical = meta.get('canonical')
+        if canonical:
+            if re.search(r'<link\s+rel="canonical"', html, re.IGNORECASE):
+                html = re.sub(
+                    r'<link\s+rel="canonical"[^>]*>',
+                    f'<link rel="canonical" href="{escape(canonical)}" />',
+                    html, count=1, flags=re.IGNORECASE,
+                )
+            else:
+                html = re.sub(
+                    r'(<title>.*?</title>)',
+                    lambda m: m.group(1) + f'\n    <link rel="canonical" href="{escape(canonical)}" />',
+                    html, count=1, flags=re.IGNORECASE | re.DOTALL,
+                )
+        return html
 
     @app.route('/admin')
     def admin_index_redirect():
@@ -184,17 +248,45 @@ def create_app():
         candidate = os.path.join(DIST_DIR, path)
         if path and os.path.isfile(candidate):
             return send_from_directory(DIST_DIR, path)
+
+        # Service landing pages: /services/<slug> — server-rendered SEO meta
+        if path.startswith('services/'):
+            from flask import abort
+            slug = path[len('services/'):].strip('/')
+            service = Service.query.filter_by(slug=slug).first()
+            if not service:
+                abort(404)
+
+            def _setting(key, default=''):
+                s = Setting.query.filter_by(key=key).first()
+                return (s.value or default) if s else default
+
+            seo_title = (service.meta_title or service.title).strip()
+            seo_desc = (service.meta_description or _setting('seo_description')).strip()
+            html = _inject_meta(_read_index_html(), {
+                'title': seo_title,
+                'description': seo_desc,
+                'keywords': (service.keywords or '').strip(),
+                'og_title': seo_title,
+                'og_description': seo_desc,
+                'og_url': f'{SITE_URL}/services/{slug}',
+                'og_image': _setting('og_image'),
+                'canonical': f'{SITE_URL}/services/{slug}',
+            })
+            return Response(html, mimetype='text/html')
+
         return send_from_directory(DIST_DIR, 'index.html')
 
     # ── Sitemap ────────────────────────────────────────────────────────
-    SITE_URL = os.getenv('SITE_URL', 'https://xn----9sbbbck9a5agbgyb0md.xn--p1ai')
 
     @app.route('/sitemap.xml')
     def sitemap():
-        # Static pages (single-page app – homepage only, everything else is SPA routes)
+        # Homepage + service landing pages
         static_pages = [
             ('/', '1.0', 'daily'),
         ]
+        for s in Service.query.filter(Service.slug.isnot(None), Service.slug != '').all():
+            static_pages.append((f'/services/{s.slug}', '0.8', 'weekly'))
 
         lines = []
         lines.append('<?xml version="1.0" encoding="UTF-8"?>')
@@ -232,13 +324,17 @@ def create_app():
             "default-src 'self'; "
             "script-src 'self' 'unsafe-inline' "
             "https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.socket.io "
-            "https://fonts.googleapis.com https://www.googletagmanager.com; "
+            "https://fonts.googleapis.com https://www.googletagmanager.com "
+            "https://www.google-analytics.com https://region1.google-analytics.com "
+            "https://stats.g.doubleclick.net; "
             "style-src 'self' 'unsafe-inline' "
             "https://cdn.jsdelivr.net https://cdnjs.cloudflare.com "
             "https://fonts.googleapis.com https://fonts.gstatic.com; "
             "font-src 'self' data: https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.gstatic.com; "
             "img-src 'self' data: blob: https: http:; "
-            "connect-src 'self' ws: wss: https://mc.yandex.ru https://yastatic.net; "
+            "connect-src 'self' ws: wss: https://mc.yandex.ru https://yastatic.net "
+            "https://www.googletagmanager.com https://www.google-analytics.com "
+            "https://region1.google-analytics.com https://stats.g.doubleclick.net; "
             "object-src 'none'; "
             "base-uri 'self'; "
             "frame-ancestors 'none'; "

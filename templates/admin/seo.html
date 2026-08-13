@@ -1,0 +1,59 @@
+{% extends 'admin/base.html' %}
+{% block title %}SEO и аналитика{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h3 class="mb-0">🔍 SEO и аналитика</h3>
+  <a href="/" class="btn btn-outline-primary btn-sm" target="_blank">
+    <i class="bi-box-arrow-up-right"></i> Открыть сайт
+  </a>
+</div>
+
+<p class="text-muted small">
+  Эти настройки управляют мета-тегами главной страницы (title, description, Open Graph)
+  и счётчиком Google Tag Manager. Изменения применяются сразу, без пересборки сайта.
+</p>
+
+<form method="post" class="card">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <div class="card-header fw-bold">Мета-теги главной страницы</div>
+  <div class="card-body">
+    {% for key, label, description, field_type in seo_keys if not key == 'gtm_id' %}
+    <div class="mb-4">
+      <label class="form-label fw-semibold" for="{{ key }}">
+        <i class="bi-tag"></i> {{ label }}
+      </label>
+      {% if field_type == 'textarea' %}
+      <textarea class="form-control" id="{{ key }}" name="{{ key }}" rows="3"
+        placeholder="{{ description }}">{{ settings.get(key, '') }}</textarea>
+      {% else %}
+      <input class="form-control" id="{{ key }}" name="{{ key }}"
+        value="{{ settings.get(key, '') }}" placeholder="{{ description }}">
+      {% endif %}
+      <div class="form-text text-muted small">{{ description }}</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="card-header fw-bold">Аналитика</div>
+  <div class="card-body">
+    {% for key, label, description, field_type in seo_keys if key == 'gtm_id' %}
+    <div class="mb-2">
+      <label class="form-label fw-semibold" for="{{ key }}">
+        <i class="bi-graph-up"></i> {{ label }}
+      </label>
+      <input class="form-control" id="{{ key }}" name="{{ key }}"
+        value="{{ settings.get(key, '') }}" placeholder="{{ description }}">
+      <div class="form-text text-muted small">{{ description }}</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="card-footer d-flex justify-content-between align-items-center">
+    <small class="text-muted">Яндекс.Метрика подключена отдельно (в шаблоне сайта).</small>
+    <button type="submit" class="btn btn-primary">
+      <i class="bi-check-lg"></i> Сохранить изменения
+    </button>
+  </div>
+</form>
+{% endblock %}

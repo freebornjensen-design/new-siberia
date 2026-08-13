@@ -6,6 +6,8 @@ from wtforms import (
 )
 from wtforms.validators import DataRequired, Optional, Length, NumberRange
 
+from admin.utils import slugify
+
 
 class ArticleForm(FlaskForm):
     title = StringField('Заголовок', validators=[DataRequired(), Length(max=255)])
@@ -15,11 +17,31 @@ class ArticleForm(FlaskForm):
 
 class ServiceForm(FlaskForm):
     title = StringField('Название', validators=[DataRequired(), Length(max=255)])
+    slug = StringField('URL (slug, латиница)', validators=[Optional(), Length(max=255)],
+        description='Оставляйте пустым — сгенерируется автоматически из названия. Пример: vyvod-iz-zapoya')
     description = TextAreaField('Описание (текст страницы)', validators=[Optional()])
+    meta_title = StringField('SEO Title (заголовок вкладки)', validators=[Optional(), Length(max=255)],
+        description='Пусто = используется название услуги')
     meta_description = TextAreaField('SEO описание (meta description, до 160 симв.)', validators=[Optional(), Length(max=160)], render_kw={'rows': 3, 'maxlength': 160})
+    keywords = StringField('Ключевые слова (через запятую)', validators=[Optional(), Length(max=500)])
     icon = StringField('Иконка', validators=[Optional(), Length(max=50)])
     order = IntegerField('Порядок', validators=[Optional()], default=0)
     submit = SubmitField('Сохранить')
+
+    def populate_obj(self, obj):
+        super().populate_obj(obj)
+        if not obj.slug:
+            obj.slug = slugify(obj.title)
+        # Ensure uniqueness (append -2, -3, … on collision)
+        from models import Service
+        q = Service.query.filter(Service.slug == obj.slug)
+        if getattr(obj, 'id', None):
+            q = q.filter(Service.id != obj.id)
+        if q.first():
+            i = 2
+            while Service.query.filter_by(slug=f'{obj.slug}-{i}').first():
+                i += 1
+            obj.slug = f'{obj.slug}-{i}'
 
 
 class StatisticForm(FlaskForm):
@@ -326,7 +348,7 @@ MODEL_CONFIG = {
         'form': ServiceForm,
         'title': 'Услуги',
         'title_singular': 'Услуга',
-        'columns': ['title', 'order', 'created_at'],
+        'columns': ['title', 'slug', 'order', 'created_at'],
         'search_field': 'title',
     },
     'statistics': {

@@ -1,5 +1,7 @@
 """Security and utility helpers for the admin panel."""
 import os
+import re
+import unicodedata
 
 from flask import current_app, flash, redirect, url_for
 from flask_login import current_user
@@ -49,6 +51,26 @@ def upload_url(folder: str, filename: str) -> str:
     """URL for a file in static/uploads/<folder>/."""
     from flask import url_for
     return url_for('static', filename=f'uploads/{folder}/{filename}')
+
+
+_TRANSLIT = {
+    'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'yo',
+    'ж': 'zh', 'з': 'z', 'и': 'i', 'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm',
+    'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u',
+    'ф': 'f', 'х': 'h', 'ц': 'ts', 'ч': 'ch', 'ш': 'sh', 'щ': 'sch',
+    'ъ': '', 'ы': 'y', 'ь': '', 'э': 'e', 'ю': 'yu', 'я': 'ya',
+}
+
+
+def slugify(text: str) -> str:
+    """Transliterate + slugify a title into a URL-safe slug (ASCII)."""
+    if not text:
+        return ''
+    text = text.lower().strip()
+    text = ''.join(_TRANSLIT.get(ch, ch) for ch in text)
+    text = unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode('ascii')
+    text = re.sub(r'[^a-z0-9]+', '-', text).strip('-')
+    return text
 
 
 def save_uploaded_file(file_storage, upload_dir: str, allowed_extensions: set) -> str:
