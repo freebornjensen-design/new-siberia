@@ -367,7 +367,7 @@ def create_app():
             "https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.socket.io "
             "https://fonts.googleapis.com https://www.googletagmanager.com "
             "https://www.google-analytics.com https://region1.google-analytics.com "
-            "https://stats.g.doubleclick.net; "
+            "https://stats.g.doubleclick.net https://mc.yandex.ru https://yastatic.net; "
             "style-src 'self' 'unsafe-inline' "
             "https://cdn.jsdelivr.net https://cdnjs.cloudflare.com "
             "https://fonts.googleapis.com https://fonts.gstatic.com; "
