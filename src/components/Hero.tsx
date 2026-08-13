@@ -17,8 +17,11 @@ export default function Hero() {
       <div className="absolute top-0 right-0 w-full lg:w-[55%] h-[60vh] lg:h-full z-0">
         <div className="absolute inset-0 bg-gradient-to-r from-navy-50 via-white/80 to-transparent lg:from-white/60 lg:to-transparent z-10" />
         <img
-          src="https://images.pexels.com/photos/7176302/pexels-photo-7176302.jpeg?auto=compress&cs=tinysrgb&h=650&w=940"
+          src="/hero.jpg"
           alt=""
+          width={940}
+          height={627}
+          decoding="async"
           className="w-full h-full object-cover"
         />
       </div>
