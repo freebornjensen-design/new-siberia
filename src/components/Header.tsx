@@ -134,7 +134,7 @@ export default function Header({ settings }: Props) {
               <Phone className="w-4 h-4" />
               <span>{phone}</span>
             </a>
-            <a href={phoneLink} className="md:hidden inline-flex items-center justify-center w-10 h-10 rounded-xl bg-brand-500 text-white">
+            <a href={phoneLink} aria-label={`Позвонить: ${phone}`} className="md:hidden inline-flex items-center justify-center w-10 h-10 rounded-xl bg-brand-500 text-white">
               <Phone className="w-5 h-5" />
             </a>
             <button
