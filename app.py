@@ -349,7 +349,7 @@ def create_app():
                 lines.append(f'- [{s.title}]({SITE_URL}/services/{s.slug}): {desc}')
             lines.append('')
 
-        return Response('\n'.join(lines), mimetype='text/markdown; charset=utf-8')
+        return Response('\n'.join(lines), mimetype='text/markdown')
 
     # ── Security headers (HSTS, CSP, X-Frame-Options, etc.) ────────────
     @app.after_request
